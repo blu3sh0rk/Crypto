@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Question, QuizResult } from './types';
-import { submitQuiz as apiSubmitQuiz, toggleFavorite as apiToggleFavorite, recordWrong as apiRecordWrong, recordAnswer as apiRecordAnswer } from './api';
+import { submitQuiz as apiSubmitQuiz, toggleFavorite as apiToggleFavorite, recordWrong as apiRecordWrong, recordAnswer as apiRecordAnswer, saveNote as apiSaveNote } from './api';
 
 interface QuizState {
   questions: Question[];
@@ -19,6 +19,7 @@ interface QuizState {
   toggleFavorite: (questionId: number) => Promise<void>;
   markAsWrong: (questionId: number) => Promise<void>;
   recordAnswer: (questionId: number, userAnswer: string, isCorrect: boolean) => Promise<void>;
+  saveNote: (questionId: number, notes: string) => Promise<void>;
 }
 
 export const useQuizStore = create<QuizState>((set, get) => ({
@@ -101,6 +102,18 @@ export const useQuizStore = create<QuizState>((set, get) => ({
           set((state) => ({
              questions: state.questions.map(q => 
                  q.id === questionId ? { ...q, is_answered: true, user_answer: userAnswer, wrong_count: isCorrect ? q.wrong_count : q.wrong_count + 1 } : q
+             )
+          }));
+      } catch (error) {
+          console.error(error);
+      }
+  },
+  saveNote: async (questionId, notes) => {
+      try {
+          await apiSaveNote(questionId, notes);
+          set((state) => ({
+             questions: state.questions.map(q => 
+                 q.id === questionId ? { ...q, notes } : q
              )
           }));
       } catch (error) {

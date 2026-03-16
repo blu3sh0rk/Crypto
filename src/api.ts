@@ -69,3 +69,15 @@ export const recordAnswer = async (questionId: number, userAnswer: string, isCor
   });
   if (!res.ok) throw new Error('Failed to record answer');
 };
+
+export const saveNote = async (questionId: number, notes: string): Promise<void> => {
+  const res = await fetch(`${API_BASE}/questions/${questionId}/note`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        ...getHeaders()
+    },
+    body: JSON.stringify({ notes })
+  });
+  if (!res.ok) throw new Error('Failed to save note');
+};

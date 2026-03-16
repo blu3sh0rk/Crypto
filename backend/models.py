@@ -26,3 +26,4 @@ class UserProgress(Base):
     is_answered = Column(Boolean, default=False)
     user_answer = Column(String, nullable=True)
     last_wrong_at = Column(DateTime, nullable=True)
+    notes = Column(String, nullable=True) # 个人笔记

@@ -21,6 +21,7 @@ class QuestionResponse(QuestionBase):
     wrong_count: int = 0
     is_answered: bool = False
     user_answer: Optional[str] = None
+    notes: Optional[str] = None
 
 class QuestionListResponse(BaseModel):
     questions: List[QuestionResponse]
@@ -57,3 +58,6 @@ class RecordWrongRequest(BaseModel):
 class RecordAnswerRequest(BaseModel):
     user_answer: str
     is_correct: bool
+
+class SaveNoteRequest(BaseModel):
+    notes: str

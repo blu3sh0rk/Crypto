@@ -10,6 +10,7 @@ export interface Question {
   wrong_count: number;
   is_answered: boolean;
   user_answer?: string;
+  notes?: string;
 }
 
 export interface QuestionListResponse {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuizStore } from '../store';
-import { ChevronLeft, ChevronRight, CheckCircle, XCircle, HelpCircle, BookOpen, Star, Grid } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, XCircle, HelpCircle, BookOpen, Star, Grid, Edit3, Save } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Quiz() {
@@ -23,6 +23,8 @@ export default function Quiz() {
 
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [showCard, setShowCard] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   useEffect(() => {
     if (questions.length === 0) {
@@ -44,6 +46,7 @@ export default function Quiz() {
     } else {
         setIsConfirmed(false);
     }
+    setNoteText(currentQ?.notes || '');
   }, [currentQuestionIndex, questions]);
 
   if (questions.length === 0) return null;
@@ -70,55 +73,41 @@ export default function Quiz() {
     recordAnswer(currentQuestion.id, selectedAnswer, isAnswerCorrect);
   };
 
+  const handleSaveNote = async () => {
+      setIsSavingNote(true);
+      await useQuizStore.getState().saveNote(currentQuestion.id, noteText);
+      setIsSavingNote(false);
+  };
+
   const answeredCount = questions.filter(q => q.is_answered).length;
   const correctCount = questions.filter(q => q.is_answered && q.user_answer === q.correct_answer).length;
   const wrongCount = questions.filter(q => q.is_answered && q.user_answer !== q.correct_answer).length;
   const unansweredCount = total - answeredCount;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-20 relative">
-      {/* Progress Bar */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm text-gray-500 font-medium">
-          <span>题目 {currentQuestionIndex + 1} / {total}</span>
-          <span>进度 {Math.round(progress)}%</span>
-        </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-600 transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
-
+    <div className="max-w-3xl mx-auto space-y-4 pb-20 relative">
       {/* Question Card */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 relative group">
-        {/* Favorite Button */}
-        <button
-            onClick={() => toggleFavorite(currentQuestion.id)}
-            className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-50 transition-colors"
-            title={currentQuestion.is_favorite ? "取消收藏" : "收藏题目"}
-        >
-            <Star 
-                className={clsx(
-                    "w-6 h-6 transition-all",
-                    currentQuestion.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"
-                )} 
-            />
-        </button>
-
-        <div className="mb-6 pr-10">
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 mb-3 mr-2">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 relative group">
+        <div className="mb-4 flex flex-wrap gap-2">
+          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+            {currentQuestionIndex + 1} / {total}
+          </span>
+          <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
             {currentQuestion.category || '未分类'}
           </span>
           {currentQuestion.wrong_count > 0 && (
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 mb-3">
+            <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600">
                 曾错 {currentQuestion.wrong_count} 次
             </span>
           )}
-          <h2 className="text-xl font-bold text-gray-900 leading-relaxed">
+        </div>
+        <div className="mb-5">
+          <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-relaxed">
             {currentQuestion.content}
           </h2>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {currentQuestion.options.map((option) => {
              const letter = option.split('.')[0].trim();
              const isSelected = selectedAnswer === letter;
@@ -152,7 +141,7 @@ export default function Quiz() {
                 onClick={() => handleOptionClick(option)}
                 disabled={isConfirmed}
                 className={clsx(
-                  "w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3 group",
+                  "w-full text-left p-3.5 rounded-xl border-2 transition-all flex items-center gap-3 group",
                   buttonStyle,
                   isConfirmed && "cursor-default"
                 )}
@@ -163,7 +152,7 @@ export default function Quiz() {
                 )}>
                   {letter}
                 </div>
-                <span className="font-medium">{option.substring(option.indexOf('.') + 1).trim()}</span>
+                <span className="font-medium text-sm sm:text-base">{option.substring(option.indexOf('.') + 1).trim()}</span>
               </button>
             );
           })}
@@ -217,6 +206,32 @@ export default function Quiz() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Note Section (Visible after confirmation) */}
+      {isConfirmed && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 mb-4">
+            <Edit3 className="w-5 h-5 text-blue-500" />
+            <h3 className="font-bold text-gray-800">我的笔记</h3>
+          </div>
+          <div className="relative">
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="在这里记录你的想法或解题思路..."
+              className="w-full min-h-[120px] p-4 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-y transition-all text-gray-700 bg-gray-50/50 focus:bg-white"
+            />
+            <button
+              onClick={handleSaveNote}
+              disabled={isSavingNote || noteText === (currentQuestion.notes || '')}
+              className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              <Save className="w-4 h-4" />
+              {isSavingNote ? '保存中...' : (noteText === (currentQuestion.notes || '') && noteText !== '' ? '已保存' : '保存笔记')}
+            </button>
           </div>
         </div>
       )}
@@ -290,16 +305,31 @@ export default function Quiz() {
       {/* Controls */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
         <div className="max-w-3xl mx-auto flex justify-between items-center gap-4">
-          <button
-            onClick={prevQuestion}
-            disabled={currentQuestionIndex === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-gray-600 font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">上一题</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={prevQuestion}
+              disabled={currentQuestionIndex === 0}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-gray-600 font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              <span className="hidden sm:inline">上一题</span>
+            </button>
+            <button
+                onClick={() => toggleFavorite(currentQuestion.id)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-gray-600 font-medium hover:bg-gray-100 transition-colors"
+                title={currentQuestion.is_favorite ? "取消收藏" : "收藏题目"}
+            >
+                <Star 
+                    className={clsx(
+                        "w-5 h-5 transition-all",
+                        currentQuestion.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400 group-hover:text-yellow-400"
+                    )} 
+                />
+                <span className="hidden sm:inline">{currentQuestion.is_favorite ? '已收藏' : '收藏'}</span>
+            </button>
+          </div>
 
-          <div className="flex gap-2 flex-1 justify-center max-w-xs">
+          <div className="flex gap-2 flex-1 justify-end sm:justify-center max-w-xs">
             <button
                 onClick={() => setShowCard(true)}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"

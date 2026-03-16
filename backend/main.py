@@ -96,7 +96,8 @@ def read_questions(
             is_favorite=p.is_favorite if p else False,
             wrong_count=p.wrong_count if p else 0,
             is_answered=p.is_answered if p else False,
-            user_answer=p.user_answer if p else None
+            user_answer=p.user_answer if p else None,
+            notes=p.notes if p else None
         )
         questions_response.append(q_resp)
         
@@ -136,7 +137,8 @@ def read_question(question_id: int, db: Session = Depends(get_db), current_user:
         is_favorite=p.is_favorite if p else False,
         wrong_count=p.wrong_count if p else 0,
         is_answered=p.is_answered if p else False,
-        user_answer=p.user_answer if p else None
+        user_answer=p.user_answer if p else None,
+        notes=p.notes if p else None
     )
 
 @app.post("/api/quiz/submit", response_model=schemas.AnswerSubmitResponse)
@@ -217,6 +219,22 @@ def record_answer(question_id: int, answer_data: schemas.RecordAnswerRequest, db
     
     db.commit()
     return {"message": "Answer recorded"}
+
+@app.post("/api/questions/{question_id}/note")
+def save_note(question_id: int, note_data: schemas.SaveNoteRequest, db: Session = Depends(get_db), current_user: auth.User = Depends(auth.get_current_user)):
+    question = db.query(models.Question).filter(models.Question.id == question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+        
+    progress = db.query(models.UserProgress).filter(models.UserProgress.question_id == question_id).first()
+    if not progress:
+        progress = models.UserProgress(question_id=question_id, notes=note_data.notes)
+        db.add(progress)
+    else:
+        progress.notes = note_data.notes
+        
+    db.commit()
+    return {"message": "Note saved"}
 
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db), current_user: auth.User = Depends(auth.get_current_user)):

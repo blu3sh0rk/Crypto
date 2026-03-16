@@ -4,18 +4,18 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-blue-600 flex items-center gap-2">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+          <Link to="/" className="text-lg font-bold text-blue-600 flex items-center gap-2">
             <span>📚</span>
             <span>刷题系统</span>
           </Link>
-          <nav className="flex gap-6">
-            <Link to="/" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">首页</Link>
-            <Link to="/questions" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">题库</Link>
+          <nav className="flex gap-4">
+            <Link to="/" className="text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors">首页</Link>
+            <Link to="/questions" className="text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors">题库</Link>
           </nav>
         </div>
       </header>
-      <main className="flex-grow container mx-auto px-4 py-8">
+      <main className="flex-grow container mx-auto px-2 py-4 sm:px-4 sm:py-6">
         <Outlet />
       </main>
       <footer className="bg-white border-t border-gray-100 py-8">
