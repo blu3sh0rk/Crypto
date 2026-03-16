@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Question, QuizResult } from './types';
-import { submitQuiz as apiSubmitQuiz, toggleFavorite as apiToggleFavorite, recordWrong as apiRecordWrong, recordAnswer as apiRecordAnswer, saveNote as apiSaveNote } from './api';
+import { submitQuiz as apiSubmitQuiz, toggleFavorite as apiToggleFavorite, recordWrong as apiRecordWrong, recordAnswer as apiRecordAnswer, saveNote as apiSaveNote, fetchAiExplanation as apiFetchAiExplanation } from './api';
 
 interface QuizState {
   questions: Question[];
@@ -10,7 +10,7 @@ interface QuizState {
   isSubmitting: boolean;
 
   setQuestions: (questions: Question[]) => void;
-  answerQuestion: (questionId: number, answer: string) => void;
+  answerQuestion: (questionId: number, answer: string, isMultipleChoice?: boolean) => void;
   nextQuestion: () => void;
   prevQuestion: () => void;
   submit: () => Promise<void>;
@@ -20,6 +20,7 @@ interface QuizState {
   markAsWrong: (questionId: number) => Promise<void>;
   recordAnswer: (questionId: number, userAnswer: string, isCorrect: boolean) => Promise<void>;
   saveNote: (questionId: number, notes: string) => Promise<void>;
+  getAiExplanation: (questionId: number, forceRefresh?: boolean) => Promise<void>;
 }
 
 export const useQuizStore = create<QuizState>((set, get) => ({
@@ -50,7 +51,33 @@ export const useQuizStore = create<QuizState>((set, get) => ({
       quizResult: null 
     });
   },
-  answerQuestion: (qId, ans) => set((state) => ({ userAnswers: { ...state.userAnswers, [qId]: ans } })),
+  answerQuestion: (qId, ans, isMultipleChoice) => set((state) => {
+    // Fallback if not passed explicitly, but it's better to pass it from component
+    // because `state.questions` might not be perfectly synchronized if filtered or modified externally
+    const multipleChoice = isMultipleChoice !== undefined
+      ? isMultipleChoice
+      : /多选|多项/.test(`${state.questions.find(q => q.id === qId)?.q_type || ''}`);
+
+    if (multipleChoice) {
+      // Toggle logic for multiple choice
+      let currentSelected = state.userAnswers[qId] || '';
+      let newAnswer = '';
+      
+      // Since ans is the letter clicked (e.g., 'A')
+      if (currentSelected.includes(ans)) {
+          newAnswer = currentSelected.replace(ans, '');
+      } else {
+          newAnswer = currentSelected + ans;
+      }
+      
+      // Sort alphabetically
+      newAnswer = newAnswer.split('').sort().join('');
+      return { userAnswers: { ...state.userAnswers, [qId]: newAnswer } };
+    }
+
+    // Default single choice logic
+    return { userAnswers: { ...state.userAnswers, [qId]: ans } };
+  }),
   nextQuestion: () => set((state) => ({ currentQuestionIndex: Math.min(state.currentQuestionIndex + 1, state.questions.length - 1) })),
   prevQuestion: () => set((state) => ({ currentQuestionIndex: Math.max(state.currentQuestionIndex - 1, 0) })),
   jumpToQuestion: (index) => set({ currentQuestionIndex: index }),
@@ -114,6 +141,18 @@ export const useQuizStore = create<QuizState>((set, get) => ({
           set((state) => ({
              questions: state.questions.map(q => 
                  q.id === questionId ? { ...q, notes } : q
+             )
+          }));
+      } catch (error) {
+          console.error(error);
+      }
+  },
+  getAiExplanation: async (questionId, forceRefresh = false) => {
+      try {
+          const res = await apiFetchAiExplanation(questionId, forceRefresh);
+          set((state) => ({
+             questions: state.questions.map(q => 
+                 q.id === questionId ? { ...q, ai_explanation: res.explanation } : q
              )
           }));
       } catch (error) {

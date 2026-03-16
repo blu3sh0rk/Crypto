@@ -20,25 +20,55 @@ export default function QuestionList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    fetchStats().then(setStats).catch(console.error);
-  }, []);
+    fetchStats()
+      .then(setStats)
+      .catch((error: Error & { status?: number }) => {
+        if (error.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/login');
+          return;
+        }
+        console.error(error);
+      });
+  }, [navigate]);
 
   useEffect(() => {
     setLoading(true);
+    setErrorMessage('');
     const favoritesOnly = view === 'favorites';
     const wrongOnly = view === 'wrong';
-    
+
     fetchQuestions(page, limit, category, favoritesOnly, wrongOnly).then(res => {
       setQuestions(res.questions);
       setTotal(res.total);
-    }).catch(console.error).finally(() => setLoading(false));
-  }, [page, category, view]);
+    }).catch((error: Error & { status?: number }) => {
+        if (error.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/login');
+          return;
+        }
+        setQuestions([]);
+        setTotal(0);
+        setErrorMessage('题目加载失败，请确认后端服务已启动');
+        console.error('Failed to fetch questions:', error);
+    }).finally(() => setLoading(false));
+  }, [page, category, view, navigate]);
 
   const handleStartQuiz = () => {
     if (questions.length === 0) return;
-    setQuestionsStore(questions);
+    if (view === 'wrong') {
+      const retryQuestions = questions.map((q) => ({
+        ...q,
+        is_answered: false,
+        user_answer: undefined
+      }));
+      setQuestionsStore(retryQuestions);
+    } else {
+      setQuestionsStore(questions);
+    }
     navigate('/quiz');
   };
   
@@ -113,6 +143,10 @@ export default function QuestionList() {
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">加载中...</div>
+      ) : errorMessage ? (
+        <div className="text-center py-12 text-red-500 bg-white rounded-xl border border-red-100">
+          {errorMessage}
+        </div>
       ) : (
         <div className="grid gap-4">
           {questions.map(q => (

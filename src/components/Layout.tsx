@@ -1,6 +1,9 @@
 import { Link, Outlet } from 'react-router-dom';
+import { useAuth } from '../auth';
 
 export default function Layout() {
+  const { logout } = useAuth();
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -9,9 +12,15 @@ export default function Layout() {
             <span>📚</span>
             <span>刷题系统</span>
           </Link>
-          <nav className="flex gap-4">
+          <nav className="flex items-center gap-4">
             <Link to="/" className="text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors">首页</Link>
             <Link to="/questions" className="text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors">题库</Link>
+            <button
+              onClick={logout}
+              className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
+            >
+              退出
+            </button>
           </nav>
         </div>
       </header>

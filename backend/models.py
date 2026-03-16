@@ -15,6 +15,7 @@ class Question(Base):
     original_id = Column(String, nullable=True) # 原4805题号
     source = Column(String, nullable=True) # 新题依据
     remark = Column(String, nullable=True) # 备注
+    ai_explanation = Column(String, nullable=True) # AI 解析
 
 class UserProgress(Base):
     __tablename__ = "user_progress"

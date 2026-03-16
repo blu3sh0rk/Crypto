@@ -65,6 +65,10 @@ export default function Home() {
               <p className="text-gray-500 text-sm">点击进入练习 &rarr;</p>
             </Link>
           ))}
+          <Link to="/questions?view=wrong" className="bg-white p-6 rounded-xl shadow-sm border border-red-100 hover:shadow-md hover:border-red-200 transition-all group">
+            <h3 className="text-lg font-semibold text-gray-900 group-hover:text-red-600 mb-2">错题本刷题</h3>
+            <p className="text-gray-500 text-sm">点击进入错题练习 &rarr;</p>
+          </Link>
         </div>
       </section>
     </div>

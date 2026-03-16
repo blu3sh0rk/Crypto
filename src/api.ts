@@ -2,6 +2,14 @@ import { QuestionListResponse, QuizResult, Stats } from './types';
 
 const API_BASE = '/api';
 
+const ensureOk = (res: Response, message: string) => {
+  if (!res.ok) {
+    const error = new Error(message) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+};
+
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -9,7 +17,7 @@ const getHeaders = () => {
 
 export const fetchStats = async (): Promise<Stats> => {
   const res = await fetch(`${API_BASE}/stats`, { headers: getHeaders() });
-  if (!res.ok) throw new Error('Failed to fetch stats');
+  ensureOk(res, 'Failed to fetch stats');
   return res.json();
 };
 
@@ -23,7 +31,7 @@ export const fetchQuestions = async (page = 1, limit = 20, category?: string, fa
   if (wrong_only) params.append('wrong_only', 'true');
 
   const res = await fetch(`${API_BASE}/questions?${params.toString()}`, { headers: getHeaders() });
-  if (!res.ok) throw new Error('Failed to fetch questions');
+  ensureOk(res, 'Failed to fetch questions');
   return res.json();
 };
 
@@ -80,4 +88,14 @@ export const saveNote = async (questionId: number, notes: string): Promise<void>
     body: JSON.stringify({ notes })
   });
   if (!res.ok) throw new Error('Failed to save note');
+};
+
+export const fetchAiExplanation = async (questionId: number, forceRefresh = false): Promise<{ explanation: string }> => {
+  const params = forceRefresh ? '?force_refresh=true' : '';
+  const res = await fetch(`${API_BASE}/questions/${questionId}/ai-explain${params}`, {
+    method: 'POST',
+    headers: getHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch AI explanation');
+  return res.json();
 };

@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 from . import models, schemas, database, importer, auth
+from .ai_service import get_ai_explanation
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -87,11 +91,13 @@ def read_questions(
         q_resp = schemas.QuestionResponse(
             id=q.id,
             q_type=q.q_type,
+            category=q.q_type, # Use q_type as category
             content=q.content,
             answer=q.answer,
             original_id=q.original_id,
             source=q.source,
             remark=q.remark,
+            ai_explanation=q.ai_explanation,
             options=options,
             is_favorite=p.is_favorite if p else False,
             wrong_count=p.wrong_count if p else 0,
@@ -128,11 +134,13 @@ def read_question(question_id: int, db: Session = Depends(get_db), current_user:
     return schemas.QuestionResponse(
         id=q.id,
         q_type=q.q_type,
+        category=q.q_type, # Use q_type as category
         content=q.content,
         answer=q.answer,
         original_id=q.original_id,
         source=q.source,
         remark=q.remark,
+        ai_explanation=q.ai_explanation,
         options=options,
         is_favorite=p.is_favorite if p else False,
         wrong_count=p.wrong_count if p else 0,
@@ -235,6 +243,30 @@ def save_note(question_id: int, note_data: schemas.SaveNoteRequest, db: Session 
         
     db.commit()
     return {"message": "Note saved"}
+
+@app.post("/api/questions/{question_id}/ai-explain")
+def explain_question(question_id: int, force_refresh: bool = False, db: Session = Depends(get_db), current_user: auth.User = Depends(auth.get_current_user)):
+    q = db.query(models.Question).filter(models.Question.id == question_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Question not found")
+        
+    if q.ai_explanation and not force_refresh:
+        return {"explanation": q.ai_explanation}
+        
+    options = []
+    if q.option_a: options.append(f"A. {q.option_a}")
+    if q.option_b: options.append(f"B. {q.option_b}")
+    if q.option_c: options.append(f"C. {q.option_c}")
+    if q.option_d: options.append(f"D. {q.option_d}")
+    
+    explanation = get_ai_explanation(q.content, options, q.answer)
+    
+    # Only save if valid response
+    if "AI API Key" not in explanation and "Error" not in explanation and "AI API Error" not in explanation:
+        q.ai_explanation = explanation
+        db.commit()
+    
+    return {"explanation": explanation}
 
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db), current_user: auth.User = Depends(auth.get_current_user)):

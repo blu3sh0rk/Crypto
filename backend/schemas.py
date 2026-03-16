@@ -4,12 +4,14 @@ from datetime import datetime
 
 class QuestionBase(BaseModel):
     id: int
-    q_type: Optional[str] = Field(None, alias="category")
+    q_type: Optional[str] = None
+    category: Optional[str] = None
     content: Optional[str] = None
     answer: Optional[str] = Field(None, alias="correct_answer")
     original_id: Optional[str] = None
     source: Optional[str] = None
     remark: Optional[str] = Field(None, alias="explanation")
+    ai_explanation: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuizStore } from '../store';
-import { ChevronLeft, ChevronRight, CheckCircle, XCircle, HelpCircle, BookOpen, Star, Grid, Edit3, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, XCircle, HelpCircle, BookOpen, Star, Grid, Edit3, Save, Sparkles, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function Quiz() {
   const navigate = useNavigate();
@@ -25,6 +27,7 @@ export default function Quiz() {
   const [showCard, setShowCard] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   useEffect(() => {
     if (questions.length === 0) {
@@ -62,7 +65,11 @@ export default function Quiz() {
   const handleOptionClick = (optionText: string) => {
     if (isConfirmed) return; // Prevent changing answer after confirmation
     const letter = optionText.split('.')[0].trim();
-    answerQuestion(currentQuestion.id, letter);
+    const typeLabel = `${currentQuestion.q_type || ''}${currentQuestion.category || ''}`;
+    const isMultipleChoice = /多选|多项/.test(typeLabel);
+    
+    // The toggle logic is now handled in the store to avoid closure issues
+    answerQuestion(currentQuestion.id, letter, isMultipleChoice);
   };
 
   const handleConfirm = () => {
@@ -77,6 +84,12 @@ export default function Quiz() {
       setIsSavingNote(true);
       await useQuizStore.getState().saveNote(currentQuestion.id, noteText);
       setIsSavingNote(false);
+  };
+
+  const handleGetAiExplanation = async (forceRefresh = false) => {
+      setIsAiLoading(true);
+      await useQuizStore.getState().getAiExplanation(currentQuestion.id, forceRefresh);
+      setIsAiLoading(false);
   };
 
   const answeredCount = questions.filter(q => q.is_answered).length;
@@ -110,7 +123,11 @@ export default function Quiz() {
         <div className="space-y-2.5">
           {currentQuestion.options.map((option) => {
              const letter = option.split('.')[0].trim();
-             const isSelected = selectedAnswer === letter;
+             const typeLabel = `${currentQuestion.q_type || ''}${currentQuestion.category || ''}`;
+             const isMultipleChoice = /多选|多项/.test(typeLabel);
+             const isSelected = isMultipleChoice 
+                ? (selectedAnswer || '').includes(letter)
+                : selectedAnswer === letter;
              
              // Determine style based on confirmation state
              let buttonStyle = "border-gray-100 hover:border-blue-200 hover:bg-gray-50 text-gray-700";
@@ -118,7 +135,8 @@ export default function Quiz() {
              
              if (isSelected) {
                if (isConfirmed) {
-                 if (isCorrect) {
+                 const isOptionCorrect = currentQuestion.correct_answer.includes(letter);
+                 if (isOptionCorrect) {
                    buttonStyle = "border-green-500 bg-green-50 text-green-700";
                    iconStyle = "bg-green-500 border-green-500 text-white";
                  } else {
@@ -126,11 +144,11 @@ export default function Quiz() {
                    iconStyle = "bg-red-500 border-red-500 text-white";
                  }
                } else {
-                 buttonStyle = "border-blue-600 bg-blue-50 text-blue-700";
-                 iconStyle = "bg-blue-600 border-blue-600 text-white";
+                 buttonStyle = "border-green-600 bg-green-50 text-green-700";
+                 iconStyle = "bg-green-600 border-green-600 text-white";
                }
-             } else if (isConfirmed && letter === currentQuestion.correct_answer) {
-               // Highlight correct answer if user chose wrong
+             } else if (isConfirmed && currentQuestion.correct_answer.includes(letter)) {
+               // Highlight correct answer if user didn't select it
                buttonStyle = "border-green-500 bg-green-50 text-green-700";
                iconStyle = "bg-green-500 border-green-500 text-white";
              }
@@ -178,6 +196,12 @@ export default function Quiz() {
               )}>
                 {isCorrect ? "回答正确" : "回答错误"}
               </h3>
+              <p className={clsx(
+                  "font-medium mt-1",
+                  isCorrect ? "text-green-700" : "text-red-700"
+              )}>
+                  你的选择：{selectedAnswer}
+              </p>
               {!isCorrect && (
                 <p className="text-red-700 font-medium">
                   正确答案是：{currentQuestion.correct_answer}
@@ -233,6 +257,44 @@ export default function Quiz() {
               {isSavingNote ? '保存中...' : (noteText === (currentQuestion.notes || '') && noteText !== '' ? '已保存' : '保存笔记')}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* AI Explanation Section (Visible after confirmation) */}
+      {isConfirmed && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-500" />
+              <h3 className="font-bold text-gray-800">AI 智能解析</h3>
+            </div>
+            {currentQuestion.ai_explanation && (
+              <button
+                onClick={() => handleGetAiExplanation(true)}
+                disabled={isAiLoading}
+                className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all"
+                title="重新生成解析"
+              >
+                <RefreshCw className={clsx("w-4 h-4", isAiLoading && "animate-spin")} />
+              </button>
+            )}
+          </div>
+          
+          {currentQuestion.ai_explanation ? (
+            <div className="text-gray-700 text-sm leading-relaxed bg-purple-50 p-4 rounded-xl [&_h1]:text-base [&_h1]:font-bold [&_h1]:mb-3 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-2 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-2 [&_li]:mb-1 [&_strong]:font-semibold [&_code]:bg-white/70 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentQuestion.ai_explanation}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <button
+                onClick={() => handleGetAiExplanation(false)}
+                disabled={isAiLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 disabled:opacity-50 transition-colors text-sm font-medium"
+            >
+                {isAiLoading ? 'AI 正在思考...' : '获取 AI 解析'}
+            </button>
+          )}
         </div>
       )}
 
@@ -315,6 +377,14 @@ export default function Quiz() {
               <span className="hidden sm:inline">上一题</span>
             </button>
             <button
+              onClick={nextQuestion}
+              disabled={currentQuestionIndex === total - 1}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-gray-600 font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <span className="hidden sm:inline">下一题</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <button
                 onClick={() => toggleFavorite(currentQuestion.id)}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-gray-600 font-medium hover:bg-gray-100 transition-colors"
                 title={currentQuestion.is_favorite ? "取消收藏" : "收藏题目"}
@@ -345,7 +415,6 @@ export default function Quiz() {
                 className="flex-1 flex justify-center items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-200 transition-all"
                 >
                 <CheckCircle className="w-5 h-5" />
-                确认
                 </button>
             ) : (
                 currentQuestionIndex < total - 1 ? (
@@ -353,7 +422,6 @@ export default function Quiz() {
                     onClick={nextQuestion}
                     className="flex-1 flex justify-center items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-lg hover:shadow-blue-200 transition-all"
                 >
-                    下一题
                     <ChevronRight className="w-5 h-5" />
                 </button>
                 ) : (

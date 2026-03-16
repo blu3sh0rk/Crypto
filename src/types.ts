@@ -1,10 +1,12 @@
 export interface Question {
   id: number;
+  q_type: string;
   category: string;
   content: string;
   options: string[];
   correct_answer?: string;
   explanation?: string;
+  ai_explanation?: string;
   source?: string;
   is_favorite: boolean;
   wrong_count: number;
